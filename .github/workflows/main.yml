@@ -1,0 +1,56 @@
+name: Temporary VPS via SSH
+
+on:
+  workflow_dispatch: # Dapat dijalankan manual
+  schedule:
+    - cron: "*/59 * * * *" # Jalankan setiap 59 menit (hampir setiap jam)
+
+jobs:
+  setup-ssh-server:
+    name: Set Up SSH Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH Server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-server
+          sudo systemctl start ssh
+          sudo systemctl enable ssh
+
+      - name: Setup SSH Key
+        run: |
+          # Membuat kunci SSH baru
+          ssh-keygen -t rsa -b 4096 -f /home/runner/.ssh/id_rsa -N ""
+          cat /home/runner/.ssh/id_rsa.pub > /home/runner/.ssh/authorized_keys
+          chmod 600 /home/runner/.ssh/authorized_keys
+          
+          # Menambahkan konfigurasi SSH
+          sudo mkdir -p /root/.ssh
+          sudo cp /home/runner/.ssh/authorized_keys /root/.ssh/authorized_keys
+          sudo chmod 700 /root/.ssh
+          sudo chmod 600 /root/.ssh/authorized_keys
+
+      - name: Allow SSH Access
+        run: |
+          # Mengatur konfigurasi firewall agar port 22 dapat diakses
+          sudo ufw allow 22
+          sudo service ssh restart
+          
+      - name: Print SSH Connection Info
+        run: |
+          echo "SSH Access Information:"
+          echo "========================"
+          echo "Host: $(curl -s ifconfig.me)"  # Mendapatkan IP publik
+          echo "Port: 22"
+          echo "User: runner"
+          echo "SSH Private Key:"
+          echo "========================"
+          cat /home/runner/.ssh/id_rsa
+          echo "========================"
+          echo "Gunakan key di atas untuk menghubungkan dengan SSH."
+
+      - name: Keep VPS Running
+        run: |
+          echo "Runner is ready for SSH access. Keep this process running..."
+          sleep 3550 # Jeda waktu agar tetap berjalan (hampir 1 jam sebelum timeout)
+          
